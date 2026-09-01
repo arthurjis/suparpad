@@ -32,7 +32,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.contentView = NSHostingView(rootView: PlaceholderView())
+
+        let apps = AppScanner.scan()
+        print("scanned \(apps.count) apps")
+        panel.contentView = NSHostingView(rootView: LaunchGridView(
+            apps: apps,
+            onLaunch: { [weak self] app in
+                print("launch: \(app.name)")
+                NSWorkspace.shared.openApplication(at: app.id, configuration: .init())
+                self?.hidePanel()
+            },
+            onDismiss: { [weak self] in self?.hidePanel() }
+        ))
 
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 { // Esc
@@ -43,10 +54,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
                 return nil
             }
-            return event
-        }
-        NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
-            self?.hidePanel() // placeholder only: any click dismisses
             return event
         }
 
