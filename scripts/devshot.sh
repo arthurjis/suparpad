@@ -10,7 +10,7 @@ mkdir -p "$OUT_DIR"
 OUT="$OUT_DIR/shot-$(date +%H%M%S).png"
 
 swift build 2>&1 | tail -5
-.build/debug/suparpad &
+.build/debug/suparpad --show &
 APP_PID=$!
 sleep "$DELAY"
 screencapture -x "$OUT"

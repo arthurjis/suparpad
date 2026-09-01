@@ -60,7 +60,7 @@ static int verbose = 0;
 
 #define RING 16
 #define LOOKBACK 12          // frames (~90ms at 125Hz)
-#define SPREAD_DELTA 0.05f   // min |spread change| across the window
+#define SPREAD_DELTA 0.035f  // min |spread change| across the window (0.05 missed short pinches)
 #define MAX_DRIFT 0.10f      // max centroid travel across the window
 
 static int runCount = -1;    // finger count of the current stable run
