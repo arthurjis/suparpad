@@ -10,8 +10,9 @@ swift build -c release 2>&1 | tail -2
 
 APP=.build/suparpad.app
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp resources/Info.plist "$APP/Contents/Info.plist"
+cp resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp .build/release/suparpad "$APP/Contents/MacOS/suparpad"
 codesign --force --sign - "$APP"
 echo "built $PWD/$APP"

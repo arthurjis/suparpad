@@ -116,8 +116,8 @@ Known limitations and good first ideas:
 - **Auto-scroll while dragging** near a screen edge (SwiftUI's drag system
   makes this awkward; likely needs an AppKit scroll layer).
 - **F4 / configurable hotkey** as an alternate trigger.
-- **Folders**, a real **app icon**, and Intel support are all currently out of
-  scope but reasonable proposals.
+- **Folders** and Intel support are currently out of scope but reasonable
+  proposals.
 
 ## Uninstall
 
