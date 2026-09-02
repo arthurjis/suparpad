@@ -64,10 +64,12 @@ static int verbose = 0;
 #define MAX_DRIFT 0.10f      // max centroid travel across the window
 #define CUM_DELTA 0.06f      // slow-pinch fallback: total travel since run start
 #define CUM_DRIFT 0.12f
+#define REFRACTORY 0.5       // seconds between events (finger bounce double-fires)
 
 static int runCount = -1;    // finger count of the current stable run
 static long runLen = 0;      // frames seen in the current run
 static int armed = 1;        // one event per touch session
+static double lastEvent = -1e9;
 static float rSpread[RING], rCx[RING], rCy[RING];
 static float startSpread, startCx, startCy;
 
@@ -79,7 +81,7 @@ static void detect(int n, float spread, float cx, float cy, double ts) {
     long idx = runLen % RING;
     rSpread[idx] = spread; rCx[idx] = cx; rCy[idx] = cy;
 
-    if (armed && runLen >= LOOKBACK) {
+    if (armed && ts - lastEvent >= REFRACTORY && runLen >= LOOKBACK) {
         long back = (runLen - LOOKBACK) % RING;
         float dWin = spread - rSpread[back];
         float wx = cx - rCx[back], wy = cy - rCy[back];
@@ -93,11 +95,13 @@ static void detect(int n, float spread, float cx, float cy, double ts) {
                    dWin < 0 ? "CLOSE" : "OPEN", ts, n, dWin, winDrift);
             fflush(stdout);
             armed = 0;
+            lastEvent = ts;
         } else if (cumDrift <= CUM_DRIFT && fabsf(dCum) >= CUM_DELTA) {
             printf("*** PINCH-%s (slow) *** t=%.3f fingers=%d dCum=%+.3f drift=%.3f\n",
                    dCum < 0 ? "CLOSE" : "OPEN", ts, n, dCum, cumDrift);
             fflush(stdout);
             armed = 0;
+            lastEvent = ts;
         }
     }
     runLen++;

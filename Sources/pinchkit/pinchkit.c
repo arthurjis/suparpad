@@ -49,14 +49,17 @@ static pinchkit_handler gHandler = NULL;
 #define MAX_DRIFT 0.10f
 #define CUM_DELTA 0.06f      // slow-pinch fallback: total travel since run start
 #define CUM_DRIFT 0.12f
+#define REFRACTORY 0.5       // seconds between events: a bouncing finger mid-
+                             // pinch starts a "new" session and double-fires
 
 static int runCount = -1;
 static long runLen = 0;
 static int armed = 1;
+static double lastEvent = -1e9;
 static float rSpread[RING], rCx[RING], rCy[RING];
 static float startSpread, startCx, startCy;
 
-static void detect(int n, float spread, float cx, float cy) {
+static void detect(int n, float spread, float cx, float cy, double ts) {
     if (n < 3) { runCount = -1; runLen = 0; return; }
     if (n != runCount) { runCount = n; runLen = 0; }
     if (runLen == 0) { startSpread = spread; startCx = cx; startCy = cy; }
@@ -64,7 +67,7 @@ static void detect(int n, float spread, float cx, float cy) {
     long idx = runLen % RING;
     rSpread[idx] = spread; rCx[idx] = cx; rCy[idx] = cy;
 
-    if (armed && runLen >= LOOKBACK) {
+    if (armed && ts - lastEvent >= REFRACTORY && runLen >= LOOKBACK) {
         // fast pinch: big spread change within the sliding window
         long back = (runLen - LOOKBACK) % RING;
         float dWin = spread - rSpread[back];
@@ -77,9 +80,11 @@ static void detect(int n, float spread, float cx, float cy) {
 
         if (winDrift <= MAX_DRIFT && fabsf(dWin) >= SPREAD_DELTA) {
             armed = 0;
+            lastEvent = ts;
             if (gHandler) gHandler(dWin > 0);
         } else if (cumDrift <= CUM_DRIFT && fabsf(dCum) >= CUM_DELTA) {
             armed = 0;
+            lastEvent = ts;
             if (gHandler) gHandler(dCum > 0);
         }
     }
@@ -87,7 +92,7 @@ static void detect(int n, float spread, float cx, float cy) {
 }
 
 static int frameCallback(MTDeviceRef dev, MTTouch *touches, int n, double ts, int frame) {
-    (void)dev; (void)ts; (void)frame;
+    (void)dev; (void)frame;
     if (n == 0) { armed = 1; runCount = -1; runLen = 0; return 0; }
 
     float cx = 0, cy = 0;
@@ -101,7 +106,7 @@ static int frameCallback(MTDeviceRef dev, MTTouch *touches, int n, double ts, in
     }
     spread /= n;
 
-    detect(n, spread, cx, cy);
+    detect(n, spread, cx, cy, ts);
     return 0;
 }
 
