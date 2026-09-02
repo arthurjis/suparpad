@@ -24,15 +24,16 @@ struct LaunchGridView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 28) {
                     section(model.top, .top)
-                        .frame(minHeight: 150) // stays droppable when empty
                     DividerBar()
                     section(model.bottom, .bottom)
-                        .frame(minHeight: 150)
                 }
                 .padding(.horizontal, 120)
                 .padding(.vertical, 60)
             }
         }
+        // Fallback: a drop that misses every section still ends the drag,
+        // so a mid-drag release can never leave an icon hidden.
+        .onDrop(of: [.text], delegate: CatchAllDropDelegate(model: model))
     }
 
     private func section(_ apps: [AppEntry], _ which: GridSection) -> some View {
@@ -43,17 +44,20 @@ struct LaunchGridView: View {
                     // the slot reflows but renders empty; only the cursor copy shows.
                     .opacity(model.dragging == app ? 0 : 1)
                     .onDrag {
-                        let provider = DragSessionProvider(object: app.key as NSString)
-                        provider.onSessionEnd = {
-                            DispatchQueue.main.async { MainActor.assumeIsolated { model.endDrag() } }
-                        }
-                        DispatchQueue.main.async { model.dragging = app } // hide next turn
-                        return provider
+                        // Hide on the next runloop turn so the drag snapshot
+                        // captures the still-visible icon. endDrag is driven by
+                        // the drop delegates / Esc / panel-open backstop — NOT a
+                        // provider deinit, whose late firing on the *next* drag
+                        // would nil `dragging` mid-drag and block cross-section moves.
+                        DispatchQueue.main.async { model.dragging = app }
+                        return NSItemProvider(object: app.key as NSString)
                     }
                     .onDrop(of: [.text], delegate: ReorderDropDelegate(target: app, model: model))
             }
         }
-        .frame(maxWidth: .infinity)
+        // minHeight + contentShape must wrap onDrop so the whole band (even
+        // when empty) is a drop target.
+        .frame(maxWidth: .infinity, minHeight: 150, alignment: .top)
         .contentShape(Rectangle())
         .onDrop(of: [.text], delegate: SectionDropDelegate(section: which, model: model))
     }
@@ -82,11 +86,12 @@ private struct SectionDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool { model.endDrag(); return true }
 }
 
-// NSItemProvider is released when the drag session ends — drop, cancel, or Esc
-// alike — making its deinit the one reliable "drag over" signal SwiftUI omits.
-private final class DragSessionProvider: NSItemProvider, @unchecked Sendable {
-    var onSessionEnd: (() -> Void)?
-    deinit { onSessionEnd?() }
+// Last-resort: a drop landing on no section (divider, outer padding) still
+// ends the drag so nothing stays hidden. Keeps the current order.
+private struct CatchAllDropDelegate: DropDelegate {
+    let model: GridModel
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+    func performDrop(info: DropInfo) -> Bool { model.endDrag(); return true }
 }
 
 private struct DividerBar: View {

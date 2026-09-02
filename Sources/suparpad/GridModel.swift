@@ -56,15 +56,21 @@ final class GridModel: ObservableObject {
         else if let i = bottom.firstIndex(of: item) { bottom.remove(at: i) }
     }
 
-    private func section(of item: AppEntry) -> GridSection? {
-        if top.contains(item) { return .top }
-        if bottom.contains(item) { return .bottom }
+    private func locate(_ item: AppEntry) -> (GridSection, Int)? {
+        if let i = top.firstIndex(of: item) { return (.top, i) }
+        if let i = bottom.firstIndex(of: item) { return (.bottom, i) }
         return nil
     }
 
     // Reflow: place `item` where `target` currently sits (either section).
     func move(_ item: AppEntry, before target: AppEntry) {
-        guard item != target else { return }
+        guard item != target,
+              let (isec, ii) = locate(item),
+              let (tsec, ti) = locate(target) else { return }
+        // Damp the drop shimmy: if item already sits immediately before target
+        // in the same section, a boundary jiggle would only flip it back and
+        // forth — ignore the redundant move.
+        if isec == tsec, ii == ti - 1 { return }
         withAnimation(.easeInOut(duration: 0.18)) {
             removeItem(item)
             if let i = top.firstIndex(of: target) { top.insert(item, at: i) }
@@ -72,22 +78,16 @@ final class GridModel: ObservableObject {
         }
     }
 
-    // Drop into a section's empty area: append to that section's end.
+    // Drag into a section's empty area: append to that section's end.
     func moveToEnd(_ item: AppEntry, section: GridSection) {
-        guard self.section(of: item) != section || indexIsNotLast(item, section) else { return }
+        let already = (section == .top ? top : bottom).last == item
+        guard !already else { return } // no churn if it's already parked there
         withAnimation(.easeInOut(duration: 0.18)) {
             removeItem(item)
             switch section {
             case .top: top.append(item)
             case .bottom: bottom.append(item)
             }
-        }
-    }
-
-    private func indexIsNotLast(_ item: AppEntry, _ section: GridSection) -> Bool {
-        switch section {
-        case .top: return top.last != item
-        case .bottom: return bottom.last != item
         }
     }
 
