@@ -25,9 +25,21 @@ struct LaunchGridView: View {
                 LazyVGrid(columns: columns, spacing: 36) {
                     ForEach(model.apps) { app in
                         AppIconView(app: app) { onLaunch(app) }
+                            // The dragged icon leaves a traveling gap (real
+                            // Launchpad style): the slot reflows but renders
+                            // empty; the cursor snapshot is the only copy.
+                            .opacity(model.dragging == app ? 0 : 1)
                             .onDrag {
-                                model.dragging = app
-                                return NSItemProvider(object: app.key as NSString)
+                                let provider = DragSessionProvider(object: app.key as NSString)
+                                provider.onSessionEnd = {
+                                    DispatchQueue.main.async {
+                                        MainActor.assumeIsolated { model.endDrag() }
+                                    }
+                                }
+                                // Hide on the next runloop turn so the drag
+                                // snapshot is taken while still visible.
+                                DispatchQueue.main.async { model.dragging = app }
+                                return provider
                             }
                             .onDrop(
                                 of: [.text],
@@ -43,6 +55,14 @@ struct LaunchGridView: View {
     }
 }
 
+// NSItemProvider is released by AppKit when the drag session ends — drop,
+// cancel, or Esc alike — making its deinit the one reliable "drag over"
+// signal SwiftUI doesn't expose. Used to un-hide the gap icon.
+private final class DragSessionProvider: NSItemProvider, @unchecked Sendable {
+    var onSessionEnd: (() -> Void)?
+    deinit { onSessionEnd?() }
+}
+
 // Sliding reflow: entering another icon's area moves the dragged app there.
 private struct ReorderDropDelegate: DropDelegate {
     let target: AppEntry
@@ -56,8 +76,7 @@ private struct ReorderDropDelegate: DropDelegate {
     func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
 
     func performDrop(info: DropInfo) -> Bool {
-        model.dragging = nil
-        model.persist()
+        model.endDrag()
         return true
     }
 }
@@ -69,8 +88,7 @@ private struct EndDragDropDelegate: DropDelegate {
     func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
 
     func performDrop(info: DropInfo) -> Bool {
-        model.dragging = nil
-        model.persist()
+        model.endDrag()
         return true
     }
 }

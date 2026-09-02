@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor
 final class GridModel: ObservableObject {
     @Published var apps: [AppEntry] = []
-    var dragging: AppEntry?
+    @Published var dragging: AppEntry? // in-grid icon hides while in hand
 
     private let layoutURL: URL = {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -39,6 +39,14 @@ final class GridModel: ObservableObject {
                 toOffset: to > from ? to + 1 : to
             )
         }
+    }
+
+    // Idempotent: called from performDrop AND from the drag session's release
+    // (the only signal that fires on cancelled drags too).
+    func endDrag() {
+        guard dragging != nil else { return }
+        dragging = nil
+        persist()
     }
 
     func persist() {
