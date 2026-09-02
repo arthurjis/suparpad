@@ -81,10 +81,12 @@ static void detect(int n, float spread, float cx, float cy, double ts) {
         if (winDrift <= MAX_DRIFT && fabsf(dWin) >= SPREAD_DELTA) {
             armed = 0;
             lastEvent = ts;
+            printf("pinchkit: %s fast ts=%.3f d=%+.3f\n", dWin > 0 ? "OPEN" : "CLOSE", ts, dWin);
             if (gHandler) gHandler(dWin > 0);
         } else if (cumDrift <= CUM_DRIFT && fabsf(dCum) >= CUM_DELTA) {
             armed = 0;
             lastEvent = ts;
+            printf("pinchkit: %s slow ts=%.3f d=%+.3f\n", dCum > 0 ? "OPEN" : "CLOSE", ts, dCum);
             if (gHandler) gHandler(dCum > 0);
         }
     }

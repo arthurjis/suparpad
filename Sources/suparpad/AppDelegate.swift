@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     //   suparpad panel ⇄ normal ⇄ desktop shown
     // pinch-close climbs toward the panel, pinch-open descends to the desktop.
     var desktopShown = false
+    var desktopToggledAt = Date.distantPast
 
     // C-compatible callback: runs on a MultitouchSupport background thread.
     // Must not touch main-actor state directly — hop to main first.
@@ -103,13 +104,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                   let rect = CGRect(dictionaryRepresentation: boundsDict as! CFDictionary),
                   rect.width > 150, rect.height > 100
             else { continue }
-            if rect.intersects(screen) { return true }
+            // Show-desktop parks windows just past the edge, sometimes with a
+            // sliver still overlapping — require a substantial overlap area.
+            let overlap = rect.intersection(screen)
+            if overlap.width > 200 && overlap.height > 150 {
+                let pid = w[kCGWindowOwnerPID as String] as? Int32 ?? -1
+                let owner = NSRunningApplication(processIdentifier: pid)?.localizedName ?? "pid \(pid)"
+                print("  windowsVisible=true: \(owner) \(Int(rect.width))x\(Int(rect.height)) at (\(Int(rect.minX)),\(Int(rect.minY)))")
+                return true
+            }
         }
+        print("  windowsVisible=false")
         return false
     }
 
+    // Window bounds lie while the show-desktop slide animates (and slivers
+    // park on-screen), so for 2s after our own toggle trust what we did.
+    private func desktopIsShown() -> Bool {
+        if Date().timeIntervalSince(desktopToggledAt) < 2.0 { return desktopShown }
+        return desktopShown && !normalWindowsVisible()
+    }
+
     func pinchClose() {
-        if desktopShown && !normalWindowsVisible() {
+        print("pinchClose: desktopShown=\(desktopShown) panelVisible=\(panel.isVisible)")
+        if desktopIsShown() {
             print("pinch-close → restore windows")
             desktopShown = false
             toggleShowDesktop()
@@ -136,8 +154,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Pinch-open dismisses the panel, or — restoring the pre-Tahoe gesture —
     // shows the desktop when the panel isn't visible.
     func pinchOpen() {
+        print("pinchOpen: desktopShown=\(desktopShown) panelVisible=\(panel.isVisible)")
         if panel.isVisible {
             hidePanel()
+        } else if desktopIsShown() {
+            print("pinch-open → desktop already shown; nothing to do")
         } else if normalWindowsVisible() {
             print("pinch-open → show desktop")
             desktopShown = true
@@ -148,6 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func toggleShowDesktop() {
+        desktopToggledAt = Date()
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         p.arguments = ["-a", "Mission Control", "--args", "1"]
