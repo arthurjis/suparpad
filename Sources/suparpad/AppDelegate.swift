@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
                 guard let delegate = NSApp.delegate as? AppDelegate else { return }
-                if isOpen == 0 { delegate.showPanel() } else { delegate.hidePanel() }
+                if isOpen == 0 { delegate.showPanel() } else { delegate.pinchOpen() }
             }
         }
     }
@@ -77,5 +77,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard panel.isVisible else { return }
         print("→ hide panel")
         panel.orderOut(nil)
+    }
+
+    // Pinch-open dismisses the panel, or — restoring the pre-Tahoe gesture —
+    // toggles Show Desktop when the panel isn't up.
+    func pinchOpen() {
+        if panel.isVisible {
+            hidePanel()
+        } else {
+            print("pinch-open → toggle show desktop")
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            p.arguments = ["-a", "Mission Control", "--args", "1"]
+            try? p.run()
+        }
     }
 }

@@ -12,6 +12,9 @@ Target machine: Apple Silicon (arm64), macOS 26.6.2.
 - Click an app to launch it and dismiss. Esc or click-on-empty dismisses.
 - Layout (ordering + page assignment) persists to a JSON file in `~/Library/Application Support/suparpad/`.
 - New/removed apps: appended to the last page / removed automatically on next open.
+- Pinch-open while the panel is hidden toggles Show Desktop — restores the
+  pre-Tahoe spread gesture, which macOS 26 dropped (Mission Control's toggle
+  still exists; we invoke it via `open -a "Mission Control" --args 1`).
 
 ## Milestones
 
