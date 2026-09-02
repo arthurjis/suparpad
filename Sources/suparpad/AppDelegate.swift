@@ -9,13 +9,18 @@ final class KeyablePanel: NSPanel {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: KeyablePanel!
 
+    // Pinch gestures walk one rung at a time on the ladder
+    //   suparpad panel ⇄ normal ⇄ desktop shown
+    // pinch-close climbs toward the panel, pinch-open descends to the desktop.
+    var desktopShown = false
+
     // C-compatible callback: runs on a MultitouchSupport background thread.
     // Must not touch main-actor state directly — hop to main first.
     private static let pinchHandler: @convention(c) (Int32) -> Void = { isOpen in
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
                 guard let delegate = NSApp.delegate as? AppDelegate else { return }
-                if isOpen == 0 { delegate.showPanel() } else { delegate.pinchOpen() }
+                if isOpen == 0 { delegate.pinchClose() } else { delegate.pinchOpen() }
             }
         }
     }
@@ -57,12 +62,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return event
         }
 
+        // Leaving show-desktop any other way (clicking a window, F11, hot
+        // corner) activates some app — clear the flag so pinch-close goes back
+        // to summoning the panel instead of un-toggling a desktop that isn't
+        // shown. Mission Control's own activation (fired by our toggle) is
+        // ignored.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil, queue: .main
+        ) { note in
+            let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            if app?.bundleIdentifier == "com.apple.exposelauncher" { return }
+            MainActor.assumeIsolated {
+                (NSApp.delegate as? AppDelegate)?.desktopShown = false
+            }
+        }
+
         let devices = pinchkit_start(Self.pinchHandler)
         print(devices > 0
             ? "pinchkit: watching \(devices) trackpad(s) — pinch-close to summon"
             : "pinchkit: NO devices (\(devices)) — pinch disabled; --show still works")
 
         if CommandLine.arguments.contains("--show") { showPanel() }
+    }
+
+    func pinchClose() {
+        if desktopShown {
+            print("pinch-close → restore windows")
+            desktopShown = false
+            toggleShowDesktop()
+        } else {
+            showPanel()
+        }
     }
 
     func showPanel() {
@@ -80,16 +111,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // Pinch-open dismisses the panel, or — restoring the pre-Tahoe gesture —
-    // toggles Show Desktop when the panel isn't up.
+    // shows the desktop when the panel isn't visible.
     func pinchOpen() {
         if panel.isVisible {
             hidePanel()
-        } else {
-            print("pinch-open → toggle show desktop")
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            p.arguments = ["-a", "Mission Control", "--args", "1"]
-            try? p.run()
+        } else if !desktopShown {
+            print("pinch-open → show desktop")
+            desktopShown = true
+            toggleShowDesktop()
         }
+    }
+
+    private func toggleShowDesktop() {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        p.arguments = ["-a", "Mission Control", "--args", "1"]
+        try? p.run()
     }
 }
