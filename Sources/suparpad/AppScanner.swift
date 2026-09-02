@@ -2,6 +2,7 @@ import AppKit
 
 struct AppEntry: Identifiable, Hashable {
     let id: URL
+    let key: String // bundle id (stable across renames/updates), path fallback
     let name: String
     let icon: NSImage
 }
@@ -48,6 +49,7 @@ enum AppScanner {
                 icon.size = NSSize(width: 128, height: 128)
                 return AppEntry(
                     id: url,
+                    key: Bundle(url: url)?.bundleIdentifier ?? url.path,
                     name: fm.displayName(atPath: url.path),
                     icon: icon
                 )

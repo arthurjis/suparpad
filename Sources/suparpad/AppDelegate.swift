@@ -6,9 +6,11 @@ final class KeyablePanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: KeyablePanel!
     var statusItem: NSStatusItem!
+    let gridModel = GridModel()
 
     // Pinch gestures walk one rung at a time on the ladder
     //   suparpad panel ⇄ normal ⇄ desktop shown
@@ -40,10 +42,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.backgroundColor = .clear
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-        let apps = AppScanner.scan()
-        print("scanned \(apps.count) apps")
+        gridModel.load()
+        print("scanned \(gridModel.apps.count) apps")
         panel.contentView = NSHostingView(rootView: LaunchGridView(
-            apps: apps,
+            model: gridModel,
             onLaunch: { [weak self] app in
                 print("launch: \(app.name)")
                 NSWorkspace.shared.openApplication(at: app.id, configuration: .init())
