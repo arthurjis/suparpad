@@ -95,7 +95,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
         ) as? [[String: Any]] else { return true }
 
-        let screen = CGDisplayBounds(CGMainDisplayID()).insetBy(dx: 40, dy: 40)
+        var count: UInt32 = 0
+        var ids = [CGDirectDisplayID](repeating: 0, count: 16)
+        CGGetActiveDisplayList(16, &ids, &count)
+        let displays = (0..<Int(count)).map { CGDisplayBounds(ids[$0]).insetBy(dx: 40, dy: 40) }
+
         let myPID = Int32(ProcessInfo.processInfo.processIdentifier)
         for w in list {
             guard (w[kCGWindowLayer as String] as? Int) == 0,
@@ -106,12 +110,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             else { continue }
             // Show-desktop parks windows just past the edge, sometimes with a
             // sliver still overlapping — require a substantial overlap area.
-            let overlap = rect.intersection(screen)
-            if overlap.width > 200 && overlap.height > 150 {
-                let pid = w[kCGWindowOwnerPID as String] as? Int32 ?? -1
-                let owner = NSRunningApplication(processIdentifier: pid)?.localizedName ?? "pid \(pid)"
-                print("  windowsVisible=true: \(owner) \(Int(rect.width))x\(Int(rect.height)) at (\(Int(rect.minX)),\(Int(rect.minY)))")
-                return true
+            for display in displays {
+                let overlap = rect.intersection(display)
+                if overlap.width > 200 && overlap.height > 150 {
+                    let pid = w[kCGWindowOwnerPID as String] as? Int32 ?? -1
+                    let owner = NSRunningApplication(processIdentifier: pid)?.localizedName ?? "pid \(pid)"
+                    print("  windowsVisible=true: \(owner) \(Int(rect.width))x\(Int(rect.height)) at (\(Int(rect.minX)),\(Int(rect.minY)))")
+                    return true
+                }
             }
         }
         print("  windowsVisible=false")
@@ -139,6 +145,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showPanel() {
         guard !panel.isVisible else { return }
+        // Appear on the screen the cursor is on, like real Launchpad.
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) }
+            ?? NSScreen.main
+        if let frame = screen?.frame, panel.frame != frame {
+            panel.setFrame(frame, display: true)
+        }
         print("pinch-close → show panel")
         // Nonactivating panel: takes key status for Esc without deactivating
         // the frontmost app, so focus returns to it on dismiss.
