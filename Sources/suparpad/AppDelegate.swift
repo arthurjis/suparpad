@@ -56,7 +56,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 { // Esc
-                self?.hidePanel()
+                // Mid-drag, Esc cancels the drag (un-hides the icon) and keeps
+                // the panel open, rather than dismissing.
+                if self?.gridModel.dragging != nil {
+                    self?.gridModel.endDrag()
+                } else {
+                    self?.hidePanel()
+                }
                 return nil
             }
             if event.keyCode == 12, event.modifierFlags.contains(.command) { // ⌘Q
@@ -166,6 +172,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showPanel() {
         guard !panel.isVisible else { return }
+        gridModel.endDrag() // backstop: never open with an icon left hidden
         // Appear on the screen the cursor is on, like real Launchpad.
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) }
