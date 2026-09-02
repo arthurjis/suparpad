@@ -43,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
         gridModel.load()
-        print("scanned \(gridModel.apps.count) apps")
+        print("scanned \(gridModel.top.count + gridModel.bottom.count) apps")
         panel.contentView = NSHostingView(rootView: LaunchGridView(
             model: gridModel,
             onLaunch: { [weak self] app in

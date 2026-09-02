@@ -1,8 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// M3: fixed 7-column grid (like classic Launchpad — spatial memory needs a
-// stable column count), drag-and-drop reordering with live reflow.
+// M3: two fixed-7-column sections — curated `top`, dump `bottom` — split by a
+// divider bar. Drag-and-drop within and across sections; layout persists.
 struct LaunchGridView: View {
     @ObservedObject var model: GridModel
     let onLaunch: (AppEntry) -> Void
@@ -22,74 +22,79 @@ struct LaunchGridView: View {
                 .onTapGesture(perform: onDismiss) // background click dismisses
 
             ScrollView(showsIndicators: false) {
-                LazyVGrid(columns: columns, spacing: 36) {
-                    ForEach(model.apps) { app in
-                        AppIconView(app: app) { onLaunch(app) }
-                            // The dragged icon leaves a traveling gap (real
-                            // Launchpad style): the slot reflows but renders
-                            // empty; the cursor snapshot is the only copy.
-                            .opacity(model.dragging == app ? 0 : 1)
-                            .onDrag {
-                                let provider = DragSessionProvider(object: app.key as NSString)
-                                provider.onSessionEnd = {
-                                    DispatchQueue.main.async {
-                                        MainActor.assumeIsolated { model.endDrag() }
-                                    }
-                                }
-                                // Hide on the next runloop turn so the drag
-                                // snapshot is taken while still visible.
-                                DispatchQueue.main.async { model.dragging = app }
-                                return provider
-                            }
-                            .onDrop(
-                                of: [.text],
-                                delegate: ReorderDropDelegate(target: app, model: model)
-                            )
-                    }
+                VStack(spacing: 28) {
+                    section(model.top, .top)
+                        .frame(minHeight: 150) // stays droppable when empty
+                    DividerBar()
+                    section(model.bottom, .bottom)
+                        .frame(minHeight: 150)
                 }
                 .padding(.horizontal, 120)
-                .padding(.vertical, 80)
+                .padding(.vertical, 60)
             }
-            .onDrop(of: [.text], delegate: EndDragDropDelegate(model: model))
         }
+    }
+
+    private func section(_ apps: [AppEntry], _ which: GridSection) -> some View {
+        LazyVGrid(columns: columns, spacing: 36) {
+            ForEach(apps) { app in
+                AppIconView(app: app) { onLaunch(app) }
+                    // Dragged icon leaves a traveling gap (real Launchpad feel):
+                    // the slot reflows but renders empty; only the cursor copy shows.
+                    .opacity(model.dragging == app ? 0 : 1)
+                    .onDrag {
+                        let provider = DragSessionProvider(object: app.key as NSString)
+                        provider.onSessionEnd = {
+                            DispatchQueue.main.async { MainActor.assumeIsolated { model.endDrag() } }
+                        }
+                        DispatchQueue.main.async { model.dragging = app } // hide next turn
+                        return provider
+                    }
+                    .onDrop(of: [.text], delegate: ReorderDropDelegate(target: app, model: model))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .onDrop(of: [.text], delegate: SectionDropDelegate(section: which, model: model))
     }
 }
 
-// NSItemProvider is released by AppKit when the drag session ends — drop,
-// cancel, or Esc alike — making its deinit the one reliable "drag over"
-// signal SwiftUI doesn't expose. Used to un-hide the gap icon.
+// A hovered icon reflows the dragged app into its slot.
+private struct ReorderDropDelegate: DropDelegate {
+    let target: AppEntry
+    let model: GridModel
+    func dropEntered(info: DropInfo) {
+        if let dragging = model.dragging { model.move(dragging, before: target) }
+    }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+    func performDrop(info: DropInfo) -> Bool { model.endDrag(); return true }
+}
+
+// Dropping in a section's empty area (or dragging into an empty section)
+// appends the app to that section's end.
+private struct SectionDropDelegate: DropDelegate {
+    let section: GridSection
+    let model: GridModel
+    func dropEntered(info: DropInfo) {
+        if let dragging = model.dragging { model.moveToEnd(dragging, section: section) }
+    }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+    func performDrop(info: DropInfo) -> Bool { model.endDrag(); return true }
+}
+
+// NSItemProvider is released when the drag session ends — drop, cancel, or Esc
+// alike — making its deinit the one reliable "drag over" signal SwiftUI omits.
 private final class DragSessionProvider: NSItemProvider, @unchecked Sendable {
     var onSessionEnd: (() -> Void)?
     deinit { onSessionEnd?() }
 }
 
-// Sliding reflow: entering another icon's area moves the dragged app there.
-private struct ReorderDropDelegate: DropDelegate {
-    let target: AppEntry
-    let model: GridModel
-
-    func dropEntered(info: DropInfo) {
-        guard let dragging = model.dragging else { return }
-        model.move(dragging, before: target)
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
-
-    func performDrop(info: DropInfo) -> Bool {
-        model.endDrag()
-        return true
-    }
-}
-
-// Drop outside any icon (background/scroll area): keep the current order.
-private struct EndDragDropDelegate: DropDelegate {
-    let model: GridModel
-
-    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
-
-    func performDrop(info: DropInfo) -> Bool {
-        model.endDrag()
-        return true
+private struct DividerBar: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(.white.opacity(0.25))
+            .frame(height: 3)
+            .padding(.horizontal, 40)
     }
 }
 
