@@ -22,10 +22,9 @@ Target machine: Apple Silicon (arm64), macOS 26.6.2.
 - Trigger: run the binary (dev mode). Esc closes.
 - **Done when:** it opens instantly, shows all apps in a stable (alphabetical) grid, launches on click.
 
-### M2 — Pages
-- Horizontal paging: two-finger swipe/scroll, ←/→ keys, page dots at bottom.
-- Apps overflow onto additional pages.
-- **Done when:** paging feels like old Launchpad (snappy snap, no half-pages).
+### M2 — Pages — CUT (2026-09-02)
+- Dropped after M1: the vertical scroll grid turned out nicer than paging.
+- Consequence for M3: layout is one continuous ordered sequence, no page assignment.
 
 ### M3 — Custom ordering
 - Drag-and-drop to reorder within a page and across pages (drag to edge flips page).
@@ -46,7 +45,7 @@ Target machine: Apple Silicon (arm64), macOS 26.6.2.
 
 ## Out of scope (v1)
 
-- Search bar (permanent), folders (maybe later), app deletion/uninstall, Liquid Glass styling, Intel support, App Store distribution, auto-update, importing the old Launchpad database.
+- Search bar (permanent), pages (cut after M1 — scroll won), folders (maybe later), app deletion/uninstall, Liquid Glass styling, Intel support, App Store distribution, auto-update, importing the old Launchpad database.
 
 ## Tech choices
 

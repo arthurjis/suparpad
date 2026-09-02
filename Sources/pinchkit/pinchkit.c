@@ -47,27 +47,40 @@ static pinchkit_handler gHandler = NULL;
 #define LOOKBACK 12          // frames (~90ms at 125Hz)
 #define SPREAD_DELTA 0.035f  // 0.05 missed short pinches; swipes measure ~0.01
 #define MAX_DRIFT 0.10f
+#define CUM_DELTA 0.06f      // slow-pinch fallback: total travel since run start
+#define CUM_DRIFT 0.12f
 
 static int runCount = -1;
 static long runLen = 0;
 static int armed = 1;
 static float rSpread[RING], rCx[RING], rCy[RING];
+static float startSpread, startCx, startCy;
 
 static void detect(int n, float spread, float cx, float cy) {
     if (n < 3) { runCount = -1; runLen = 0; return; }
     if (n != runCount) { runCount = n; runLen = 0; }
+    if (runLen == 0) { startSpread = spread; startCx = cx; startCy = cy; }
 
     long idx = runLen % RING;
     rSpread[idx] = spread; rCx[idx] = cx; rCy[idx] = cy;
 
     if (armed && runLen >= LOOKBACK) {
+        // fast pinch: big spread change within the sliding window
         long back = (runLen - LOOKBACK) % RING;
-        float dSpread = spread - rSpread[back];
-        float dx = cx - rCx[back], dy = cy - rCy[back];
-        float drift = sqrtf(dx * dx + dy * dy);
-        if (drift <= MAX_DRIFT && fabsf(dSpread) >= SPREAD_DELTA) {
+        float dWin = spread - rSpread[back];
+        float wx = cx - rCx[back], wy = cy - rCy[back];
+        float winDrift = sqrtf(wx * wx + wy * wy);
+        // slow pinch: big total travel since the fingers settled
+        float dCum = spread - startSpread;
+        float sx = cx - startCx, sy = cy - startCy;
+        float cumDrift = sqrtf(sx * sx + sy * sy);
+
+        if (winDrift <= MAX_DRIFT && fabsf(dWin) >= SPREAD_DELTA) {
             armed = 0;
-            if (gHandler) gHandler(dSpread > 0);
+            if (gHandler) gHandler(dWin > 0);
+        } else if (cumDrift <= CUM_DRIFT && fabsf(dCum) >= CUM_DELTA) {
+            armed = 0;
+            if (gHandler) gHandler(dCum > 0);
         }
     }
     runLen++;

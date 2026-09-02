@@ -62,27 +62,40 @@ static int verbose = 0;
 #define LOOKBACK 12          // frames (~90ms at 125Hz)
 #define SPREAD_DELTA 0.035f  // min |spread change| across the window (0.05 missed short pinches)
 #define MAX_DRIFT 0.10f      // max centroid travel across the window
+#define CUM_DELTA 0.06f      // slow-pinch fallback: total travel since run start
+#define CUM_DRIFT 0.12f
 
 static int runCount = -1;    // finger count of the current stable run
 static long runLen = 0;      // frames seen in the current run
 static int armed = 1;        // one event per touch session
 static float rSpread[RING], rCx[RING], rCy[RING];
+static float startSpread, startCx, startCy;
 
 static void detect(int n, float spread, float cx, float cy, double ts) {
     if (n < 3) { runCount = -1; runLen = 0; return; }
     if (n != runCount) { runCount = n; runLen = 0; }
+    if (runLen == 0) { startSpread = spread; startCx = cx; startCy = cy; }
 
     long idx = runLen % RING;
     rSpread[idx] = spread; rCx[idx] = cx; rCy[idx] = cy;
 
     if (armed && runLen >= LOOKBACK) {
         long back = (runLen - LOOKBACK) % RING;
-        float dSpread = spread - rSpread[back];
-        float dx = cx - rCx[back], dy = cy - rCy[back];
-        float drift = sqrtf(dx * dx + dy * dy);
-        if (drift <= MAX_DRIFT && fabsf(dSpread) >= SPREAD_DELTA) {
-            printf("*** PINCH-%s *** t=%.3f fingers=%d dSpread=%+.3f drift=%.3f\n",
-                   dSpread < 0 ? "CLOSE" : "OPEN", ts, n, dSpread, drift);
+        float dWin = spread - rSpread[back];
+        float wx = cx - rCx[back], wy = cy - rCy[back];
+        float winDrift = sqrtf(wx * wx + wy * wy);
+        float dCum = spread - startSpread;
+        float sx = cx - startCx, sy = cy - startCy;
+        float cumDrift = sqrtf(sx * sx + sy * sy);
+
+        if (winDrift <= MAX_DRIFT && fabsf(dWin) >= SPREAD_DELTA) {
+            printf("*** PINCH-%s (fast) *** t=%.3f fingers=%d dSpread=%+.3f drift=%.3f\n",
+                   dWin < 0 ? "CLOSE" : "OPEN", ts, n, dWin, winDrift);
+            fflush(stdout);
+            armed = 0;
+        } else if (cumDrift <= CUM_DRIFT && fabsf(dCum) >= CUM_DELTA) {
+            printf("*** PINCH-%s (slow) *** t=%.3f fingers=%d dCum=%+.3f drift=%.3f\n",
+                   dCum < 0 ? "CLOSE" : "OPEN", ts, n, dCum, cumDrift);
             fflush(stdout);
             armed = 0;
         }
