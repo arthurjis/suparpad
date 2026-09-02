@@ -113,6 +113,11 @@ keep the pinch/private-API surface confined to `pinchkit`.
 
 Known limitations and good first ideas:
 
+- **The app list only refreshes at launch.** Apps installed or removed while
+  suparpad is running don't appear/disappear until it restarts (which happens
+  at login; or quit it from the menu bar — the launch agent revives it). A
+  rescan-on-open with a cheap diff, or an FSEvents watcher on the scan roots,
+  would fix this.
 - **Auto-scroll while dragging** near a screen edge (SwiftUI's drag system
   makes this awkward; likely needs an AppKit scroll layer).
 - **F4 / configurable hotkey** as an alternate trigger.
