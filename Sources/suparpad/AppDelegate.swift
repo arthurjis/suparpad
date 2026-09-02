@@ -86,12 +86,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--show") { showPanel() }
     }
 
+    // The Mission Control call is a blind toggle, so a shadow flag alone
+    // inverts forever after one missed event. Decide from observable reality:
+    // during show-desktop all normal app windows are slid off-screen.
+    private func normalWindowsVisible() -> Bool {
+        guard let list = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
+        ) as? [[String: Any]] else { return true }
+
+        let screen = CGDisplayBounds(CGMainDisplayID()).insetBy(dx: 40, dy: 40)
+        let myPID = Int32(ProcessInfo.processInfo.processIdentifier)
+        for w in list {
+            guard (w[kCGWindowLayer as String] as? Int) == 0,
+                  (w[kCGWindowOwnerPID as String] as? Int32) != myPID,
+                  let boundsDict = w[kCGWindowBounds as String],
+                  let rect = CGRect(dictionaryRepresentation: boundsDict as! CFDictionary),
+                  rect.width > 150, rect.height > 100
+            else { continue }
+            if rect.intersects(screen) { return true }
+        }
+        return false
+    }
+
     func pinchClose() {
-        if desktopShown {
+        if desktopShown && !normalWindowsVisible() {
             print("pinch-close → restore windows")
             desktopShown = false
             toggleShowDesktop()
         } else {
+            desktopShown = false // resync if the flag went stale
             showPanel()
         }
     }
@@ -115,10 +138,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func pinchOpen() {
         if panel.isVisible {
             hidePanel()
-        } else if !desktopShown {
+        } else if normalWindowsVisible() {
             print("pinch-open → show desktop")
             desktopShown = true
             toggleShowDesktop()
+        } else {
+            print("pinch-open → no windows on screen; nothing to do")
         }
     }
 
