@@ -8,6 +8,7 @@ final class KeyablePanel: NSPanel {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: KeyablePanel!
+    var statusItem: NSStatusItem!
 
     // Pinch gestures walk one rung at a time on the ladder
     //   suparpad panel ⇄ normal ⇄ desktop shown
@@ -62,6 +63,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return event
         }
+
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.button?.image = NSImage(
+            systemSymbolName: "square.grid.3x3.fill",
+            accessibilityDescription: "suparpad"
+        )
+        let menu = NSMenu()
+        let show = NSMenuItem(title: "Show Launchpad", action: #selector(menuShowPanel), keyEquivalent: "")
+        show.target = self
+        menu.addItem(show)
+        menu.addItem(.separator())
+        let quit = NSMenuItem(title: "Quit suparpad", action: #selector(menuQuit), keyEquivalent: "q")
+        quit.target = self
+        menu.addItem(quit)
+        statusItem.menu = menu
 
         // Leaving show-desktop any other way (clicking a window, F11, hot
         // corner) activates some app — clear the flag so pinch-close goes back
@@ -142,6 +158,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             showPanel()
         }
     }
+
+    @objc private func menuShowPanel() { showPanel() }
+    @objc private func menuQuit() { NSApp.terminate(nil) }
 
     func showPanel() {
         guard !panel.isVisible else { return }

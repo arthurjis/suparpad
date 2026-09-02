@@ -4,8 +4,16 @@ From-scratch Launchpad replacement for macOS Tahoe. Read `SCOPE.md` first — it
 
 ## Build & run
 
-- `swift build` — builds both targets. No Xcode project; SPM only.
-- `.build/debug/suparpad` — runs the app directly (full-screen panel, Esc quits).
+- `swift build` — builds all targets. No Xcode project; SPM only.
+- `.build/debug/suparpad` — runs the app directly (dev loop).
+- `scripts/make-app.sh --install` — release build → suparpad.app →
+  /Applications, plus a launch-at-login LaunchAgent (com.arthur.suparpad).
+  The installed app logs to `~/Library/Logs/suparpad.log` — read that file
+  to debug the production instance.
+- The user runs the installed app permanently. Before dev-running a debug
+  binary, `pkill -x suparpad` (kills the installed instance too — two
+  instances fight over the gesture); afterwards restore with
+  `launchctl kickstart gui/$UID/com.arthur.suparpad`.
 - `.build/debug/pinchprobe [seconds]` — raw trackpad touch logger (M5 spike). Prints finger count + spread per frame. Needs a human touching the trackpad; ask the user to pinch while it runs (suggest they run `! .build/debug/pinchprobe 15` themselves so timing lines up). Exit code 2 = no devices (missing Input Monitoring permission or no trackpad).
 
 Verified working on this machine (2026-09-01, macOS 26.6.2, arm64): device enumerates, ~125Hz frames, MTTouch layout correct (normalized coords track smoothly in 0–1). The pinch detector in pinchprobe is validated with real gestures: ≥3-finger stable run, 12-frame (~90ms) sliding window, |Δspread| ≥ 0.05, centroid drift ≤ 0.10, one event per touch session (re-arm on all-fingers-up). 18/18 pinches detected, 0 false positives from scrolls/swipes, ~100–140ms latency. Reuse these exact thresholds when porting the detector into the app (M5).

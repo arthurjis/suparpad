@@ -34,11 +34,11 @@ Target machine: Apple Silicon (arm64), macOS 26.6.2.
 - Persisted layout JSON; survives restart; new apps don't disturb existing order.
 - **Done when:** an arrangement made by hand is still exactly there a week later.
 
-### M4 — Always-on triggers
-- Menu bar item (LSUIElement app, no Dock icon).
-- Global hotkey (F4 / configurable) via Carbon RegisterEventHotKey or similar.
-- Launch-at-login.
-- **Done when:** the app is invisible until summoned, from any Space.
+### M4 — Always-on triggers — DONE 2026-09-02 (F4 deferred)
+- Menu bar item (LSUIElement app, no Dock icon) with Show/Quit. ✓
+- Launch-at-login via LaunchAgent; .app bundle built by scripts/make-app.sh,
+  installed to /Applications, logs to ~/Library/Logs/suparpad.log. ✓
+- Global hotkey (F4) deferred — pinch covers summoning; add on request.
 
 ### M5 — Pinch to open (stretch goal)
 - Global 3/4-finger pinch detection via the private MultitouchSupport framework (raw touch data → own pinch detector with tunable thresholds).
