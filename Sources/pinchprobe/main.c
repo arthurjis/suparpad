@@ -3,8 +3,9 @@
 // runs the suparpad pinch detector, printing *** PINCH-CLOSE/OPEN *** events.
 //
 // Detector (thresholds derived from real capture on this machine, 2026-09-01):
-//   - consider only frames with >= 3 fingers; reset the run when count changes
-//     (spread jumps discontinuously when a finger lands/lifts)
+//   - consider only frames with >= 4 fingers (thumb+3, like real Launchpad;
+//     3 would false-trigger on 2-finger scrolls with a resting thumb); reset
+//     the run when count changes (spread jumps when a finger lands/lifts)
 //   - slide a 12-frame (~90ms @ 125Hz) window over a stable run
 //   - PINCH-CLOSE: spread delta <= -0.05 with centroid drift <= 0.10
 //   - PINCH-OPEN:  spread delta >= +0.05 with centroid drift <= 0.10
@@ -74,7 +75,7 @@ static float rSpread[RING], rCx[RING], rCy[RING];
 static float startSpread, startCx, startCy;
 
 static void detect(int n, float spread, float cx, float cy, double ts) {
-    if (n < 3) { runCount = -1; runLen = 0; return; }
+    if (n < 4) { runCount = -1; runLen = 0; return; } // 4+ only: a resting thumb during a 2-finger scroll makes 3 contacts and mimics a pinch
     if (n != runCount) { runCount = n; runLen = 0; }
     if (runLen == 0) { startSpread = spread; startCx = cx; startCy = cy; }
 

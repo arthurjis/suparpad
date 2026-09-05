@@ -60,7 +60,7 @@ static float rSpread[RING], rCx[RING], rCy[RING];
 static float startSpread, startCx, startCy;
 
 static void detect(int n, float spread, float cx, float cy, double ts) {
-    if (n < 3) { runCount = -1; runLen = 0; return; }
+    if (n < 4) { runCount = -1; runLen = 0; return; } // 4+ only: a resting thumb during a 2-finger scroll makes 3 contacts and mimics a pinch
     if (n != runCount) { runCount = n; runLen = 0; }
     if (runLen == 0) { startSpread = spread; startCx = cx; startCy = cy; }
 

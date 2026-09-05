@@ -42,7 +42,7 @@ Target machine: Apple Silicon (arm64), macOS 26.6.2.
 - Global hotkey (F4) deferred — pinch covers summoning; add on request.
 
 ### M5 — Pinch to open (stretch goal)
-- Global 3/4-finger pinch detection via the private MultitouchSupport framework (raw touch data → own pinch detector with tunable thresholds).
+- Global 4-finger pinch detection via the private MultitouchSupport framework (raw touch data → own pinch detector with tunable thresholds). Raised from 3/4 to 4-only on 2026-09-02: three contacts is what a 2-finger scroll with a resting thumb looks like, and it false-triggered.
 - Needs Input Monitoring/Accessibility permission; user disables the system Apps-view gesture in System Settings → Trackpad.
 - Known risk: private API, threshold tuning is trial-and-error, could break on a macOS update. If it fights us too long, hot corner + F4 is the fallback and M5 is dropped without regret.
 - **Done when:** pinch-close opens suparpad reliably without false triggers while scrolling/zooming.

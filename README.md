@@ -16,8 +16,9 @@ isolated private API used to read the trackpad pinch.
 
 ## Features
 
-- **Pinch to summon.** A 3- or 4-finger pinch-closed opens the grid over a
-  blurred wallpaper; pinch-open, `Esc`, or a click dismisses it.
+- **Pinch to summon.** A 4-finger pinch-closed (thumb + three fingers, like
+  the classic Launchpad gesture) opens the grid over a blurred wallpaper;
+  pinch-open, `Esc`, or a click dismisses it.
 - **Show Desktop, restored.** Pinch-open when nothing's on screen shows the
   desktop; pinch-closed brings your windows back — the classic gesture Tahoe
   dropped.
@@ -60,7 +61,7 @@ to detect the trackpad pinch globally. Enable suparpad there and pinch again.
 
 | Action | Result |
 | --- | --- |
-| Pinch closed (3–4 fingers) | Open suparpad |
+| Pinch closed (4 fingers: thumb + three) | Open suparpad |
 | Pinch open, panel visible | Dismiss |
 | Pinch open, nothing on screen | Show Desktop |
 | Pinch closed, desktop shown | Restore windows |
